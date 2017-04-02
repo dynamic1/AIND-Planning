@@ -139,8 +139,31 @@ class AirCargoProblem(Problem):
             e.g. 'FTTTFF'
         :return: list of Action objects
         """
-        # TODO implement
+
+        # print(state)
+
+        # implemented by me
         possible_actions = []
+
+        # build a Knowledge Base from state
+        kb = PropKB()
+        kb.tell(decode_state(state, self.state_map).pos_sentence())
+
+        for action in self.actions_list:
+            actions_is_possible = True
+            #check each positive preconditions of action against KB
+            for precond in action.precond_pos:
+                if precond not in kb.clauses:
+                    actions_is_possible = False
+
+            #check all nagatime preconditions of action against KB
+            for precond in action.precond_neg:
+                if precond in kb.clauses:
+                    actions_is_possible = False
+
+            if actions_is_possible:
+                possible_actions.append(action)
+
         return possible_actions
 
     def result(self, state: str, action: Action):
@@ -152,7 +175,7 @@ class AirCargoProblem(Problem):
         :param action: Action applied
         :return: resulting state after action
         """
-        # TODO implement
+        # implemented by me
         new_state = FluentState([], [])
         return encode_state(new_state, self.state_map)
 
@@ -220,6 +243,8 @@ def air_cargo_p1() -> AirCargoProblem:
     goal = [expr('At(C1, JFK)'),
             expr('At(C2, SFO)'),
             ]
+    # print(init.sentence())
+    # print(init.pos_sentence())
     return AirCargoProblem(cargos, planes, airports, init, goal)
 
 
