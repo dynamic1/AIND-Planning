@@ -176,7 +176,19 @@ class AirCargoProblem(Problem):
         :return: resulting state after action
         """
         # implemented by me
-        new_state = FluentState([], [])
+        pos_list = decode_state(state, self.state_map).pos
+        neg_list = decode_state(state, self.state_map).neg
+
+        # add positive effects
+        for effect in action.effect_add:
+            pos_list.append(effect)
+            neg_list.remove(effect)
+
+        for effect in action.effect_rem:
+            neg_list.append(effect)
+            pos_list.remove(effect)
+
+        new_state = FluentState(pos_list, neg_list)
         return encode_state(new_state, self.state_map)
 
     def goal_test(self, state: str) -> bool:
