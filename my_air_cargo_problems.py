@@ -145,7 +145,7 @@ class AirCargoProblem(Problem):
         # implemented by me
         possible_actions = []
 
-        # build a Knowledge Base from state
+        # build a Knowledge Base from state ( just positive sentences )
         kb = PropKB()
         kb.tell(decode_state(state, self.state_map).pos_sentence())
 
@@ -230,6 +230,19 @@ class AirCargoProblem(Problem):
         '''
         # TODO implement (see Russell-Norvig Ed-3 10.2.3  or Russell-Norvig Ed-2 11.2)
         count = 0
+
+        # print(f"my current state: {node.state}")
+        # print(f"my goal state: {self.goal}")
+
+        # build a Knowledge Base from local node state
+        kb = PropKB()
+        kb.tell(decode_state(node.state, self.state_map).pos_sentence())
+
+        # print(kb.clauses)
+        for clause in self.goal:
+            if clause not in kb.clauses:
+                count+=1
+
         return count
 
 
