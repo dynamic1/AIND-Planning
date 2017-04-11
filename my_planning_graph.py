@@ -3,6 +3,7 @@ from aimacode.search import Problem
 from aimacode.utils import expr
 from lp_utils import decode_state
 
+from aimacode.logic import PropKB
 
 class PgNode():
     ''' Base class for planning graph nodes.
@@ -99,6 +100,10 @@ class PgNode_s(PgNode):
     def __hash__(self):
         return hash(self.symbol) ^ hash(self.is_pos)
 
+    """xalex"""
+    def __str__(self):
+        return "literal_state: {}".format(self.literal)
+
 
 class PgNode_a(PgNode):
     '''A-type (action) Planning Graph node - inherited from PgNode
@@ -137,6 +142,11 @@ class PgNode_a(PgNode):
         '''
         print("\n*** {}{}".format(self.action.name, self.action.args))
         PgNode.show(self)
+
+    """xalex"""
+    def __str__(self):
+        return "*** {}{}".format(self.action.name, self.action.args)
+
 
     def precond_s_nodes(self):
         '''precondition literals as S-nodes (represents possible parents for this node).
@@ -312,6 +322,65 @@ class PlanningGraph():
         #   to see if a proposed PgNode_a has prenodes that are a subset of the previous S level.  Once an
         #   action node is added, it MUST be connected to the S node instances in the appropriate s_level set.
 
+        print("\nI have to build level A%d" % level)
+        print( "simbols:", [s.symbol for s in  self.s_levels[level] ])
+        print( "literals:",[s.literal for s in  self.s_levels[level] ])
+        for s in self.s_levels[level-1]:
+            print( "detalii: {sign}{literal}".format( sign=" " if s.is_pos else"~", literal=s.symbol))
+
+        assert len(self.a_levels)==level
+        self.a_levels.append(set())
+
+        """
+        # class Action has:
+        precond_pos = [expr("Human(person)"), expr("Hungry(Person)")]
+        precond_neg = [expr("Eaten(food)")]
+        """
+
+        for state_node in self.s_levels[level]:
+            print("existing literal in S{}: {}".format(level,state_node.literal))
+
+        for a in self.all_actions:
+            print("testez {}".format(a))
+            action_is_possible = True
+
+            for precond in a.precond_pos:
+                condition_holds = False
+                for state_node in self.s_levels[level]:
+                    print("compar {} si {}".format(precond, state_node.literal))
+                    if precond == state_node.literal and state_node.is_pos:
+                        condition_holds = True
+                        break
+                if not condition_holds:
+                    action_is_possible = False
+                    break
+
+            for precond in a.precond_neg:
+                condition_holds = False
+                for state_node in self.s_levels[level]:
+                    print("compar negative precondition_negative ~{} si state={}".format(precond, state_node.literal))
+                    if precond == state_node.symbol and state_node.is_pos == False:
+                        condition_holds = True
+                        break
+                if not condition_holds:
+                    action_is_possible = False
+                    break
+
+
+            if action_is_possible:
+                print ("ok: {}".format(a))
+                self.a_levels[level].add(PgNode_a(a))
+            else:
+                print("not ok: {}".format(a))
+
+        for a in self.a_levels[level]:
+            # print("{action}".format(action=a.action))
+            print("node in A{}: {}".format(level,a))
+            # a.show()
+
+        # TODO: Once an action node is added,
+            # it MUST be connected to the S node instances in the appropriate s_level set
+
     def add_literal_level(self, level):
         ''' add an S (literal) level to the Planning Graph
 
@@ -329,6 +398,18 @@ class PlanningGraph():
         #   may be "added" to the set without fear of duplication.  However, it is important to then correctly create and connect
         #   all of the new S nodes as children of all the A nodes that could produce them, and likewise add the A nodes to the
         #   parent sets of the S nodes
+
+        print ('\nI have to build literal level S{}'.format( level))
+
+        assert len(self.s_levels) == level
+        self.s_levels.append(set())
+
+        for prev_action in self.a_levels[level -1 ]:
+            for effect in prev_action.effnodes:
+                self.s_levels[level].add(effect, )
+
+        for s in self.s_levels[level]:
+            print("state in S{}: {}".format(level, s.symbol))
 
     def update_a_mutex(self, nodeset):
         ''' Determine and update sibling mutual exclusion for A-level nodes
