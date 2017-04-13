@@ -3,7 +3,19 @@ from aimacode.search import Problem
 from aimacode.utils import expr
 from lp_utils import decode_state
 
-from aimacode.logic import PropKB
+from xlogger import xlogger
+["inconsistent_effects_mutex", "not add_action_level"]
+#logging.config.fileConfig('logging.conf')
+
+# create logger
+logger = xlogger()
+logger.set_filter([], True)
+#logger.filter_expression.append("inconsistent_effects_mutex")
+logger.filter_expression.append("competing_needs_mutex")
+logger.filter_expression.append("<module>")
+# logger.filter_expression.append("add_action_level")
+logger.debug("\n",False)
+
 
 class PgNode():
     ''' Base class for planning graph nodes.
@@ -322,11 +334,11 @@ class PlanningGraph():
         #   to see if a proposed PgNode_a has prenodes that are a subset of the previous S level.  Once an
         #   action node is added, it MUST be connected to the S node instances in the appropriate s_level set.
 
-        print("\nI have to build level A%d" % level)
-        print( "simbols:", [s.symbol for s in  self.s_levels[level] ])
-        print( "literals:",[s.literal for s in  self.s_levels[level] ])
+        logger.debug("\nI have to build level A%d" % level)
+        logger.debug( "simbols:", [s.symbol for s in  self.s_levels[level] ])
+        logger.debug( "literals:",[s.literal for s in  self.s_levels[level] ])
         for s in self.s_levels[level-1]:
-            print( "detalii: {sign}{literal}".format( sign=" " if s.is_pos else"~", literal=s.symbol))
+            logger.debug( "detalii: {sign}{literal}".format( sign=" " if s.is_pos else"~", literal=s.symbol))
 
         assert len(self.a_levels)==level
         self.a_levels.append(set())
@@ -338,19 +350,24 @@ class PlanningGraph():
         """
 
         for state_node in self.s_levels[level]:
-            print("existing literal in S{}: {}".format(level,state_node.literal))
+            logger.debug("existing literal in S{}: {}".format(level,state_node.literal))
 
         for a in self.all_actions:
-            print("testez {}".format(a))
+            logger.debug("testez {}".format(a))
             action_is_possible = True
+            new_node = None
 
             for precond in a.precond_pos:
                 condition_holds = False
                 for state_node in self.s_levels[level]:
-                    print("compar {} si {}".format(precond, state_node.literal))
+                    logger.debug("compar {} si {}".format(precond, state_node.literal))
                     if precond == state_node.literal and state_node.is_pos:
                         condition_holds = True
-                        break
+                        if new_node is None:
+                            new_node = PgNode_a(a)
+                        state_node.children.add(a)
+                        new_node.parents.add(state_node)
+                        # break
                 if not condition_holds:
                     action_is_possible = False
                     break
@@ -358,24 +375,34 @@ class PlanningGraph():
             for precond in a.precond_neg:
                 condition_holds = False
                 for state_node in self.s_levels[level]:
-                    print("compar negative precondition_negative ~{} si state={}".format(precond, state_node.literal))
+                    logger.debug("compar negative precondition_negative ~{} si state={}".format(precond, state_node.literal))
                     if precond == state_node.symbol and state_node.is_pos == False:
                         condition_holds = True
-                        break
+                        if not new_node:
+                            new_node = PgNode_a(a)
+                        state_node.children.add(a)
+                        new_node.parents.add(state_node)
+                        # break
                 if not condition_holds:
                     action_is_possible = False
                     break
 
-
+            """
             if action_is_possible:
-                print ("ok: {}".format(a))
-                self.a_levels[level].add(PgNode_a(a))
+                logger.debug ("ok: {}".format(a))
+                new_node = PgNode_a(a)
+                #now i need to add a to the list of children of each state that allows "a"
+                for precond in a.precond_pos:
+                    for s_node in self.s_levels[level]:
+                        pass
+                self.a_levels[level].add(new_node)
             else:
-                print("not ok: {}".format(a))
+                logger.debug("not ok: {}".format(a))
+                """
 
         for a in self.a_levels[level]:
-            # print("{action}".format(action=a.action))
-            print("node in A{}: {}".format(level,a))
+            # logger.debug("{action}".format(action=a.action))
+            logger.debug("node in A{}: {}".format(level,a))
             # a.show()
 
         # TODO: Once an action node is added,
@@ -399,7 +426,7 @@ class PlanningGraph():
         #   all of the new S nodes as children of all the A nodes that could produce them, and likewise add the A nodes to the
         #   parent sets of the S nodes
 
-        print ('\nI have to build literal level S{}'.format( level))
+        logger.debug ('\nI have to build literal level S{}'.format( level))
 
         assert len(self.s_levels) == level
         self.s_levels.append(set())
@@ -409,7 +436,7 @@ class PlanningGraph():
                 self.s_levels[level].add(effect, )
 
         for s in self.s_levels[level]:
-            print("state in S{}: {}".format(level, s.symbol))
+            logger.debug("state in S{}: {}".format(level, s.symbol))
 
     def update_a_mutex(self, nodeset):
         ''' Determine and update sibling mutual exclusion for A-level nodes
@@ -467,7 +494,26 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         '''
-        # TODO test for Inconsistent Effects between nodes
+
+        # implemented by me
+
+        for s1 in node_a1.effnodes:
+            logger.debug ("a1 has effect {}".format(s1))
+            for s2 in node_a2.effnodes:
+                logger.debug("a2 has effect {}".format(s2))
+                if (s2.symbol == s1.symbol and s2.is_pos != s1.is_pos):
+                    logger.debug(f"match {s1.symbol}")
+                    return True
+
+        for s1 in node_a2.effnodes:
+            logger.debug ("a1 has effect {}".format(s1))
+            for s2 in node_a1.effnodes:
+                logger.debug("a2 has effect {}".format(s2))
+                if (s2.symbol == s1.symbol and s2.is_pos != s1.is_pos):
+                    logger.debug(f"match {s1.symbol}")
+                    return True
+
+        logger.debug("---")
         return False
 
     def interference_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
@@ -484,7 +530,26 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         '''
-        # TODO test for Interference between nodes
+        # implemented by me
+
+        for s1 in node_a1.prenodes:
+            logger.debug ("a1 has precondition {}".format(s1))
+            for s2 in node_a2.effnodes:
+                logger.debug("a2 has effect {}".format(s2))
+                if (s2.symbol == s1.symbol and s2.is_pos != s1.is_pos):
+                    logger.debug(f"match {s1.symbol}")
+                    return True
+
+        for s1 in node_a2.prenodes:
+            logger.debug ("a1 has precondition {}".format(s1))
+            for s2 in node_a1.effnodes:
+                logger.debug("a2 has effect {}".format(s2))
+                if (s2.symbol == s1.symbol and s2.is_pos != s1.is_pos):
+                    logger.debug(f"match {s1.symbol}")
+                    return True
+
+        logger.debug("---")
+
         return False
 
     def competing_needs_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
@@ -498,7 +563,26 @@ class PlanningGraph():
         :return: bool
         '''
 
-        # TODO test for Competing Needs between nodes
+        # implemented by me
+        for s1 in node_a1.parents:
+            logger.debug ("a1 has child {}".format(s1))
+            for s2 in node_a2.parents:
+                logger.debug("s1 has mutexes {}, s2 has mutexes {}".format(s1.mutex, s2.mutex))
+                logger.debug("a2 has child {}".format(s2))
+                if s2.is_mutex(s1):
+                    logger.debug(f"match {s1.symbol}")
+                    return True
+        """
+        for s1 in node_a2.prenodes:
+            logger.debug ("a1 has precondition {}".format(s1))
+            for s2 in node_a1.prenodes:
+                logger.debug("a2 has precondition {}".format(s2))
+                if (s2.symbol == s1.symbol and s2.is_pos != s1.is_pos):
+                    logger.debug(f"match {s1.symbol}")
+                    return True
+        """
+        logger.debug("---")
+
         return False
 
     def update_s_mutex(self, nodeset: set):
@@ -533,7 +617,10 @@ class PlanningGraph():
         :param node_s2: PgNode_s
         :return: bool
         '''
-        # TODO test for negation between nodes
+        # implemented by me
+
+        if (node_s1.symbol == node_s2.symbol) and (node_s1.is_pos != node_s2.is_pos):
+            return True
         return False
 
     def inconsistent_support_mutex(self, node_s1: PgNode_s, node_s2: PgNode_s):
@@ -552,8 +639,15 @@ class PlanningGraph():
         :param node_s2: PgNode_s
         :return: bool
         '''
-        # TODO test for Inconsistent Support between nodes
-        return False
+
+        #implemented by me
+
+        for a1 in node_s1.parents:
+            actions_are_compatible = False
+            for a2 in node_s2.parents:
+                if not a1.is_mutex(a2):
+                    return False
+        return True
 
     def h_levelsum(self) -> int:
         '''The sum of the level costs of the individual goals (admissible if goals independent)
@@ -564,3 +658,4 @@ class PlanningGraph():
         # TODO implement
         # for each goal in the problem, determine the level cost, then add them together
         return level_sum
+

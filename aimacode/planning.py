@@ -92,6 +92,10 @@ class Action:
         for clause in self.effect_add:
             kb.tell(self.substitute(clause, args))
 
+    """xalex"""
+    def __repr__(self):
+        return "{}{}".format(self.name, self.args)
+
 
 def air_cargo():
     init = [expr('At(C1, SFO)'),
