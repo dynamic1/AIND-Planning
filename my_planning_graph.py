@@ -11,8 +11,10 @@ from xlogger import xlogger
 logger = xlogger()
 logger.set_filter([], True)
 #logger.filter_expression.append("inconsistent_effects_mutex")
-logger.filter_expression.append("competing_needs_mutex")
-logger.filter_expression.append("<module>")
+# logger.filter_expression.append("competing_needs_mutex")
+logger.filter_expression.append("add_action_level")
+# logger.filter_expression.append("<module>")
+# logger.set_filter([], False)
 # logger.filter_expression.append("add_action_level")
 logger.debug("\n",False)
 
@@ -387,7 +389,7 @@ class PlanningGraph():
                     action_is_possible = False
                     break
 
-            """
+
             if action_is_possible:
                 logger.debug ("ok: {}".format(a))
                 new_node = PgNode_a(a)
@@ -398,7 +400,7 @@ class PlanningGraph():
                 self.a_levels[level].add(new_node)
             else:
                 logger.debug("not ok: {}".format(a))
-                """
+
 
         for a in self.a_levels[level]:
             # logger.debug("{action}".format(action=a.action))
